@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 from .calculator import PensionCalculator, calculate_pension_locally
 from .models import PensionCalculationRequest, UserData
 from .config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOG_LEVEL, LOG_FORMAT
-from .validation import validate_uaser_data, sanity_check_pension
+from .validation import validate_user_data, sanity_check_pension
 from .result_formatter import build_pension_result_json, format_validation_errors
 from .pdf_parser import get_mock_zus_tables
 
