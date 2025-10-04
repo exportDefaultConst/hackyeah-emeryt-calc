@@ -87,6 +87,55 @@ hackyeah-emeryt-calc/
 
 The API will be available at `http://localhost:5000`
 
+## User Data Fields
+
+All API endpoints accept a `user_data` object with the following fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `age` | integer | ✅ | User's current age |
+| `gender` | string | ✅ | "male" or "female" (affects retirement age and life expectancy) |
+| `gross_salary` | float | ✅ | Monthly gross salary in PLN |
+| `work_start_year` | integer | ✅ | Year when user started working |
+| `work_end_year` | integer | ✅ | Planned retirement year |
+| `industry` | string | ⚪ Optional | Industry sector (e.g., "IT", "Finance") |
+| `position` | string | ⚪ Optional | Job position |
+| `company` | string | ⚪ Optional | Company name |
+| `zus_account_balance` | float | ⚪ Optional | Current ZUS account balance |
+| `zus_subaccount_balance` | float | ⚪ Optional | Current ZUS sub-account balance |
+| `sick_leave_days_per_year` | float | ⚪ Optional | Average sick leave days per year |
+| `desired_pension` | float | ⚪ Optional | 🎯 **NEW!** Target monthly pension in PLN |
+
+### 🎯 NEW: Pension Goals Feature
+
+The `desired_pension` field unlocks personalized goal-based advice:
+
+- **Without goal**: System tells you what pension you'll get
+- **With goal**: System helps you achieve your target pension!
+
+When you provide `desired_pension`, the FAQ endpoint will:
+- ✅ Calculate the gap between your goal and current projection
+- ✅ Generate priority questions about reaching your target
+- ✅ Provide concrete advice: how many years longer to work, what salary increase needed
+- ✅ Show realistic scenarios for achieving your goal
+
+**Example:**
+```json
+{
+  "user_data": {
+    "age": 35,
+    "gross_salary": 8000.0,
+    "desired_pension": 6000.0,  // "I want 6,000 PLN/month in retirement!"
+    ...
+  }
+}
+```
+
+If system calculates you'll get 4,500 PLN, FAQ will include questions like:
+- "Co muszę zrobić, aby osiągnąć moją docelową emeryturę 6,000 PLN?"
+- "Ile lat dłużej muszę pracować, aby dostać 6,000 PLN emerytury?"
+- "O ile muszę zwiększyć pensję, aby osiągnąć cel 6,000 PLN?"
+
 ## API Endpoints
 
 ### `GET /api/health`
@@ -117,7 +166,8 @@ Calculate pension projection using Perplexity AI
     "position": "Senior Developer",
     "zus_account_balance": 50000.0,
     "zus_subaccount_balance": 15000.0,
-    "sick_leave_days_per_year": 5.0
+    "sick_leave_days_per_year": 5.0,
+    "desired_pension": 6000.0
   }
 }
 ```
@@ -291,7 +341,8 @@ Generate personalized FAQ based on user's pension calculation
 - AI analyzes user's specific situation (age, salary, industry, pension amount)
 - Generates 5-7 most relevant questions they're likely to ask
 - Provides concrete, personalized answers
-- Categories: comparisons, scenarios, optimizations, legal
+- Categories: comparisons, scenarios, optimizations, legal, **goal** 🆕
+- 🎯 **NEW**: Goal-based questions when `desired_pension` is provided!
 
 **Request:**
 ```json
@@ -302,7 +353,8 @@ Generate personalized FAQ based on user's pension calculation
     "gross_salary": 8000.0,
     "work_start_year": 2010,
     "industry": "IT",
-    "position": "Senior Developer"
+    "position": "Senior Developer",
+    "desired_pension": 6000.0
   },
   "calculation_result": {
     "monthly_pension": 4567.89,
@@ -312,34 +364,39 @@ Generate personalized FAQ based on user's pension calculation
 }
 ```
 
-**Response:**
+**Response (with pension goal):**
 ```json
 {
   "faq": [
     {
+      "question": "Co muszę zrobić, aby osiągnąć moją docelową emeryturę 6,000 PLN?",
+      "answer": "Aby osiągnąć 6,000 PLN emerytury (zamiast prognozowanych 4,568 PLN), możesz: 1) Pracować 8 lat dłużej (do 73 lat), 2) Zwiększyć wynagrodzenie o 31% (do 10,500 PLN), lub 3) Kombinacja: pracować 4 lata dłużej i zwiększyć pensję o 15%. Najrealistyczniejsza opcja to przedłużenie kariery o 5-6 lat przy obecnym wynagrodzeniu.",
+      "relevance": "high",
+      "category": "goal"
+    },
+    {
+      "question": "Ile lat dłużej muszę pracować, aby dostać 6,000 PLN emerytury?",
+      "answer": "Musisz pracować około 8 lat dłużej (do wieku 73 lat), zakładając stałe wynagrodzenie 8,000 PLN. Każdy dodatkowy rok pracy dodaje około 180-200 PLN do miesięcznej emerytury.",
+      "relevance": "high",
+      "category": "goal"
+    },
+    {
       "question": "Ile dostają emeryci w mojej branży?",
-      "answer": "W branży IT średnia emerytura wynosi około 3,800 PLN. Twoja prognozowana emerytura (4,567 PLN) jest o 20% wyższa od średniej branżowej, co wynika z wysokich zarobków i regularnych składek.",
+      "answer": "W branży IT średnia emerytura wynosi około 3,800 PLN. Twoja prognozowana emerytura (4,567 PLN) jest o 20% wyższa od średniej branżowej, ale wciąż 24% poniżej Twojego celu 6,000 PLN.",
       "relevance": "high",
       "category": "comparison"
-    },
-    {
-      "question": "Co jeśli nie będę pracować przez 5 lat?",
-      "answer": "5-letnia przerwa w pracy zmniejszy Twoją emeryturę o około 850-950 PLN miesięcznie. To wynika z braku składek oraz utraty waloryzacji zgromadzonego kapitału.",
-      "relevance": "high",
-      "category": "scenario"
-    },
-    {
-      "question": "Czy mogę liczyć na wcześniejszą emeryturę?",
-      "answer": "Wcześniejsza emerytura (przed 65. rokiem życia) jest możliwa, ale wiąże się z trwałym obniżeniem świadczenia. Przy przejściu na emeryturę w wieku 60 lat, Twoja emerytura byłaby o ~30% niższa (około 3,200 PLN).",
-      "relevance": "medium",
-      "category": "legal"
     }
   ],
   "metadata": {
     "generated_at": "2025-10-04T14:30:00",
     "user_age": 35,
     "user_industry": "IT",
-    "total_questions": 7
+    "total_questions": 7,
+    "has_pension_goal": true,
+    "desired_pension": 6000.0,
+    "actual_pension": 4567.89,
+    "pension_gap": 1432.11,
+    "gap_percentage": 31.4
   }
 }
 ```

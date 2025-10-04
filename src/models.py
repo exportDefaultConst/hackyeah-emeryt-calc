@@ -19,6 +19,7 @@ class UserData:
     zus_account_balance: Optional[float] = None
     zus_subaccount_balance: Optional[float] = None
     sick_leave_days_per_year: Optional[float] = None
+    desired_pension: Optional[float] = None  # How much pension user wants (PLN/month)
 
 
 class PensionCalculationRequest(BaseModel):

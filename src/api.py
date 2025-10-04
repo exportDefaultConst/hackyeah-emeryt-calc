@@ -368,6 +368,29 @@ def generate_faq():
         monthly_pension = calculation_result.get('monthly_pension', 'nie obliczono')
         replacement_rate = calculation_result.get('replacement_rate', 'nie obliczono')
         
+        # Check if user has desired pension goal
+        desired_pension_info = ""
+        pension_gap = None
+        if user_data.desired_pension:
+            pension_gap = user_data.desired_pension - (monthly_pension if isinstance(monthly_pension, (int, float)) else 0)
+            if pension_gap > 0:
+                desired_pension_info = f"""
+        - WAŻNE: Użytkownik CHCE emeryturę: {user_data.desired_pension} PLN
+        - LUKA: Brakuje mu {pension_gap:.0f} PLN do celu ({user_data.desired_pension} PLN)
+        - Status: Emerytura NIE OSIĄGA celu użytkownika!
+                """
+            elif pension_gap < 0:
+                desired_pension_info = f"""
+        - DOBRA WIADOMOŚĆ: Użytkownik CHCE {user_data.desired_pension} PLN, a dostanie {monthly_pension} PLN
+        - NADWYŻKA: {abs(pension_gap):.0f} PLN powyżej celu!
+        - Status: Emerytura PRZEKRACZA oczekiwania użytkownika!
+                """
+            else:
+                desired_pension_info = f"""
+        - Użytkownik CHCE emeryturę: {user_data.desired_pension} PLN
+        - Status: CEL OSIĄGNIĘTY! Prognoza = cel użytkownika
+                """
+        
         faq_prompt = f"""
         Jesteś ekspertem od polskiego systemu emerytalnego ZUS.
         
@@ -380,6 +403,7 @@ def generate_faq():
         - Rok rozpoczęcia pracy: {user_data.work_start_year}
         - Prognozowana emerytura: {monthly_pension} PLN
         - Stopa zastąpienia: {replacement_rate}%
+        {desired_pension_info}
         
         Wygeneruj 5-7 NAJBARDZIEJ ISTOTNYCH pytań, które ta osoba prawdopodobnie chce zadać
         dotyczących swojej emerytury i sytuacji emerytalnej. Pytania powinny być:
@@ -387,7 +411,14 @@ def generate_faq():
         - Praktyczne (dotyczące rzeczywistych decyzji życiowych)
         - Zróżnicowane (porównania, scenariusze "co jeśli", optymalizacje)
         
+        {"⚠️ PRIORYTET: Jeśli użytkownik ma CEL emerytury i go NIE OSIĄGA, MUSISZ wygenerować pytania:" if pension_gap and pension_gap > 0 else ""}
+        {"- 'Co muszę zrobić, aby osiągnąć moją docelową emeryturę X PLN?'" if pension_gap and pension_gap > 0 else ""}
+        {"- 'Ile lat dłużej muszę pracować, aby dostać X PLN emerytury?'" if pension_gap and pension_gap > 0 else ""}
+        {"- 'Jakie są opcje zwiększenia mojej emerytury do poziomu X PLN?'" if pension_gap and pension_gap > 0 else ""}
+        {"- 'Czy realistyczne jest osiągnięcie emerytury X PLN przy mojej sytuacji?'" if pension_gap and pension_gap > 0 else ""}
+        
         Dla każdego pytania podaj KONKRETNĄ, PRAKTYCZNĄ odpowiedź (2-3 zdania).
+        {"W odpowiedziach na pytania o cel - podaj KONKRETNE LICZBY i DZIAŁANIA." if pension_gap and pension_gap > 0 else ""}
         
         Zwróć wynik w formacie JSON:
         {{
@@ -396,17 +427,18 @@ def generate_faq():
                     "question": "Pytanie?",
                     "answer": "Szczegółowa odpowiedź bazująca na danych użytkownika...",
                     "relevance": "high|medium|low",
-                    "category": "comparison|scenario|optimization|legal"
+                    "category": "comparison|scenario|optimization|legal|goal"
                 }}
             ]
         }}
         
         Uwzględnij pytania typu:
+        {f"- JAK OSIĄGNĄĆ CEL {user_data.desired_pension} PLN (NAJWAŻNIEJSZE!)" if pension_gap and pension_gap > 0 else ""}
         - Porównania z rówieśnikami/branżą
         - Scenariusze "co jeśli" (przerwy w pracy, zmiana zarobków)
         - Optymalizacje (kiedy przejść na emeryturę, ile pracować dłużej)
         - Wcześniejsza emerytura / emerytura pomostowa
-        - Wpływ dodatkowych oszczędności (IKE, IKZE)
+        - Wpływ dodatkowych oszczędności (IKE, IKZE, III filar)
         """
         
         # Call Perplexity API
@@ -439,13 +471,24 @@ def generate_faq():
         result = json.loads(json_str)
         
         # Add metadata
-        result["metadata"] = {
+        metadata = {
             "generated_at": datetime.now().isoformat(),
             "user_age": user_data.age,
             "user_industry": user_data.industry,
             "model": "perplexity-ai",
             "total_questions": len(result.get("faq", []))
         }
+        
+        # Add pension goal info to metadata if available
+        if user_data.desired_pension:
+            metadata["has_pension_goal"] = True
+            metadata["desired_pension"] = float(user_data.desired_pension)
+            metadata["actual_pension"] = float(monthly_pension)
+            if pension_gap:
+                metadata["pension_gap"] = float(pension_gap)
+                metadata["gap_percentage"] = round((pension_gap / monthly_pension) * 100, 1)
+        
+        result["metadata"] = metadata
         
         logger.info(f"Generated {len(result.get('faq', []))} FAQ questions")
         return jsonify(result), 200
