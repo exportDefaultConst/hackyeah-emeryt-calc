@@ -1,35 +1,50 @@
 # Polish Pension Calculator API
 
-A minimalistic Flask API that calculates Polish pension projections using the Perplexity API and LangChain. Provides detailed retirement calculations based on ZUS (Polish Social Insurance) regulations.
+A minimalistic Flask API that calculates Polish pension projections using the Perplexity API and LangChain, **plus a fully local calculation engine** based on official ZUS statistics and formulas. Provides detailed retirement calculations based on ZUS (Polish Social Insurance) regulations.
 
 ## Features
 
 - ✅ **Clean Architecture**: Separated concerns (config, models, calculator, API)
 - ✅ **Comprehensive Logging**: Built-in logging at all levels
 - ✅ **Perplexity API Integration**: Uses LangChain for AI-powered calculations
+- ✅ **Local ZUS Calculator**: Full pension calculation without external APIs
+- ✅ **Official ZUS Statistics**: Uses real valorization indices and demographic data
+- ✅ **Input Validation**: Comprehensive user data validation with detailed error messages
+- ✅ **Sanity Checking**: Automatic validation of calculation results against realistic bounds
+- ✅ **Standardized Results**: Unified JSON schema for all calculation endpoints
+- ✅ **PDF Parsing**: Load official ZUS tables from PDF documents
 - ✅ **Polish ZUS Calculations**: Accurate pension projections based on Polish regulations
 - ✅ **Docker Support**: Production-ready containerization with Gunicorn
 - ✅ **Health Check Endpoint**: Monitor service status
 - ✅ **Environment Configuration**: Easy setup with .env files
+- ✅ **Full Audit Trail**: Detailed calculation logs for transparency
 
 ## Project Structure
 
 ```
 hackyeah-emeryt-calc/
-├── src/                   # Source code directory
-│   ├── __init__.py       # Package initialization
-│   ├── config.py         # Configuration and constants
-│   ├── models.py         # Data models (UserData, Request, Result)
-│   ├── calculator.py     # Pension calculation logic
-│   ├── api.py            # Flask API endpoints
-│   └── example_usage.py  # Example usage script
-├── run.py                # Main runner script (start here!)
-├── requirements.txt      # Python dependencies
-├── Dockerfile           # Docker configuration
-├── docker-compose.yml   # Docker Compose setup
-├── setup.ps1            # Automated setup script
-├── .env.example         # Environment variables template
-└── README.md            # This file
+├── src/                          # Source code directory
+│   ├── __init__.py              # Package initialization
+│   ├── config.py                # Configuration and constants
+│   ├── models.py                # Data models (UserData, Request, Result)
+│   ├── calculator.py            # Pension calculation logic (AI + Local)
+│   ├── validation.py            # Input validation utilities
+│   ├── result_formatter.py      # Result standardization
+│   ├── pdf_parser.py            # PDF parsing for ZUS documents
+│   ├── api.py                   # Flask API endpoints
+│   └── example_usage.py         # Example usage script
+├── run.py                       # Main runner script (start here!)
+├── requirements.txt             # Python dependencies
+├── Dockerfile                   # Docker configuration
+├── docker-compose.yml           # Docker Compose setup
+├── test_local_calculation.py    # Test local calculation function
+├── test_local_api.py            # Test local calculation API
+├── PENSION_CALCULATION_DOCS.md  # Detailed local calculation docs
+├── DATA_SOURCES.md              # Official data sources reference
+├── QUICK_START.md               # 5-minute quick start guide
+├── IMPLEMENTATION_SUMMARY.md    # Implementation details
+├── .env.example                 # Environment variables template
+└── README.md                    # This file
 ```
 
 ## Installation
@@ -85,7 +100,7 @@ Health check endpoint
 ```
 
 ### `POST /calculate_pension`
-Calculate pension projection
+Calculate pension projection using Perplexity AI
 
 **Request:**
 ```json
@@ -121,14 +136,152 @@ Calculate pension projection
     "user_age": 35,
     "user_gender": "male",
     "current_salary": 8000.0,
-    "api_model": "llama-3.1-sonar-large-128k-online"
+    "api_model": "sonar-pro"
   }
 }
 ```
 
+### `POST /calculate_pension_local` ⭐ NEW
+Calculate pension using local ZUS statistics (no AI API required)
+
+**Features:**
+- ✅ Uses official ZUS valorization indices (2015-2080)
+- ✅ GUS demographic tables for life expectancy
+- ✅ Full audit trail with formulas and coefficients
+- ✅ No external API calls - completely local
+- ✅ Precise Decimal arithmetic for accuracy
+
+**Request:**
+```json
+{
+  "user_data": {
+    "age": 35,
+    "gender": "male",
+    "gross_salary": 8000.0,
+    "work_start_year": 2010,
+    "work_end_year": 2054,
+    "zus_account_balance": 50000.0,
+    "zus_subaccount_balance": 20000.0,
+    "sick_leave_days_per_year": 10
+  },
+  "official_tables": {
+    "valorization_indices": {
+      "2024": 1.1266,
+      "2025": 1.0580,
+      "2026": 1.0520
+    },
+    "profitability_indices": {
+      "2024": 1.0350,
+      "2025": 1.0380
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "monthly_pension": 4567.89,
+  "details": {
+    "calculation_date": "2025-10-04T...",
+    "user_info": {
+      "age": 35,
+      "gender": "male",
+      "retirement_age": 65,
+      "total_work_years": 44,
+      "remaining_years": 29
+    },
+    "pension_capital": {
+      "main_account": 456789.12,
+      "sub_account": 234567.89,
+      "total_capital": 691357.01,
+      "life_expectancy_months": 210
+    },
+    "formulas": {
+      "contribution_formula": "Składka = Wynagrodzenie brutto × 19.52%",
+      "pension_formula": "Emerytura miesięczna = Kapitał emerytalny / Średnie dalsze trwanie życia (miesiące)"
+    },
+    "coefficients": {
+      "contribution_rate_total": 0.1952,
+      "contribution_rate_main": 0.1222,
+      "contribution_rate_sub": 0.073,
+      "salary_growth_rate_annual": 1.035,
+      "minimum_pension_2025": 1780.96
+    },
+    "pension_metrics": {
+      "monthly_pension_gross": 4567.89,
+      "final_salary_projection": 12345.67,
+      "replacement_rate_percent": 37.02,
+      "years_to_work_longer": 5,
+      "sick_leave_impact_monthly": -123.45
+    },
+    "audit_trail": {
+      "yearly_contributions": [...],
+      "valorization_log": [...]
+    },
+    "data_sources": {
+      "valorization_indices_source": "ZUS historical data + projections",
+      "life_expectancy_source": "GUS 2024"
+    },
+    "assumptions": [...]
+  }
+}
+```
+
+📖 **See [PENSION_CALCULATION_DOCS.md](PENSION_CALCULATION_DOCS.md) for complete documentation**
+
+### `POST /validate_user_data` 🆕
+Validate user data without performing calculation
+
+**Request:**
+```json
+{
+  "user_data": {
+    "age": 35,
+    "gender": "male",
+    "gross_salary": 8000.0,
+    "work_start_year": 2010
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "Rozpoczęcie pracy przed 18 rokiem życia - sprawdź dane"
+  ]
+}
+```
+
+### `GET /zus_tables` 🆕
+Get default ZUS tables with historical and projected data
+
+**Response:**
+```json
+{
+  "valorization_indices": {
+    "2024": 1.1266,
+    "2025": 1.0580,
+    ...
+  },
+  "profitability_indices": { ... },
+  "life_expectancy_tables": { ... },
+  "economic_projections": { ... },
+  "average_pensions": {
+    "male": 3500.0,
+    "female": 2800.0
+  },
+  "metadata": { ... }
+}
+```
+
+
 ## Usage Examples
 
-### Using curl
+### Using curl - AI-powered calculation
 ```powershell
 curl -X POST http://localhost:5000/calculate_pension `
   -H "Content-Type: application/json" `
@@ -142,8 +295,47 @@ curl -X POST http://localhost:5000/calculate_pension `
   }'
 ```
 
-### Using Python script
+### Using curl - Local calculation
 ```powershell
+curl -X POST http://localhost:5000/calculate_pension_local `
+  -H "Content-Type: application/json" `
+  -d '{
+    "user_data": {
+      "age": 35,
+      "gender": "male",
+      "gross_salary": 8000.0,
+      "work_start_year": 2010
+    }
+  }'
+```
+
+### Using Python - Direct function call
+```python
+from src.models import UserData
+from src.calculator import calculate_pension_locally
+
+user_data = UserData(
+    age=35,
+    gender="male",
+    gross_salary=8000.0,
+    work_start_year=2010
+)
+
+result = calculate_pension_locally(user_data)
+print(f"Monthly pension: {result['monthly_pension']:.2f} PLN")
+print(f"Replacement rate: {result['details']['pension_metrics']['replacement_rate_percent']:.2f}%")
+```
+
+### Running test scripts
+```powershell
+# Test local calculation function directly
+python test_local_calculation.py
+
+# Test local calculation via API (requires running server)
+python run.py  # In one terminal
+python test_local_api.py  # In another terminal
+
+# Test AI-powered calculation
 python src/example_usage.py
 ```
 

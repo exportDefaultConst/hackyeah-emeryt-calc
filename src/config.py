@@ -20,6 +20,8 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Pension System Constants
 PENSION_CONTRIBUTION_RATE = 0.1952  # 19.52%
+PENSION_CONTRIBUTION_MAIN_ACCOUNT = 0.1222  # 12.22% - konto główne
+PENSION_CONTRIBUTION_SUB_ACCOUNT = 0.073   # 7.3% - subkonto
 MINIMUM_PENSION_2025 = 1780.96  # PLN
 
 # Retirement Ages
@@ -28,8 +30,8 @@ RETIREMENT_AGE = {
     "female": 60
 }
 
-# Average Life Expectancy (months after retirement)
+# Average Life Expectancy (months after retirement) - GUS 2024
 LIFE_EXPECTANCY_MONTHS = {
-    "male": 210,
-    "female": 254.3
+    "male": 210,      # ~17.5 years
+    "female": 254.3   # ~21.2 years
 }
