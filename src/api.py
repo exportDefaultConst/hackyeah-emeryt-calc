@@ -294,6 +294,345 @@ def get_zus_tables():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/faq', methods=['POST'])
+def generate_faq():
+    """
+    Generate personalized FAQ based on user's pension calculation.
+    
+    🌟 WOW FEATURE #1: AI-Generated Personalized Questions
+    
+    Uses AI to generate relevant questions based on user's specific situation:
+    - "Ile dostają emeryci w mojej branży?"
+    - "Jak wypadam na tle rówieśników?"
+    - "Co jeśli nie będę pracować przez 5 lat?"
+    - "Czy mogę liczyć na wcześniejszą emeryturę?"
+    
+    Request JSON:
+    {
+        "user_data": {
+            "age": 35,
+            "gender": "male",
+            "gross_salary": 8000.0,
+            "work_start_year": 2010,
+            "industry": "IT",
+            "position": "Senior Developer",
+            ...
+        },
+        "calculation_result": {
+            "monthly_pension": 4567.89,
+            "replacement_rate": 37.5,
+            ...
+        }
+    }
+    
+    Response:
+    {
+        "faq": [
+            {
+                "question": "Ile dostają emeryci w mojej branży?",
+                "answer": "W branży IT średnia emerytura...",
+                "relevance": "high"
+            },
+            ...
+        ],
+        "metadata": {...}
+    }
+    """
+    logger.info("FAQ generation endpoint called")
+    
+    try:
+        # Check if calculator is initialized
+        if calculator is None:
+            logger.error("Calculator not initialized - missing API key")
+            return jsonify({
+                "error": "Calculator not initialized. Please set PPLX_API_KEY environment variable",
+                "calculation_date": datetime.now().isoformat()
+            }), 500
+
+        # Get request data
+        data = request.get_json()
+        
+        if not data or 'user_data' not in data:
+            return jsonify({"error": "user_data field is required"}), 400
+        
+        user_data_dict = data['user_data']
+        calculation_result = data.get('calculation_result', {})
+        
+        # Parse user data
+        user_data = UserData(**user_data_dict)
+        
+        logger.info(f"Generating FAQ for user: age={user_data.age}, "
+                   f"gender={user_data.gender}, industry={user_data.industry}")
+        
+        # Generate personalized prompt for FAQ
+        monthly_pension = calculation_result.get('monthly_pension', 'nie obliczono')
+        replacement_rate = calculation_result.get('replacement_rate', 'nie obliczono')
+        
+        faq_prompt = f"""
+        Jesteś ekspertem od polskiego systemu emerytalnego ZUS.
+        
+        Użytkownik właśnie obliczył swoją prognozowaną emeryturę. Oto jego sytuacja:
+        - Wiek: {user_data.age} lat
+        - Płeć: {user_data.gender}
+        - Wynagrodzenie: {user_data.gross_salary} PLN brutto
+        - Branża: {user_data.industry or 'nie podano'}
+        - Stanowisko: {user_data.position or 'nie podano'}
+        - Rok rozpoczęcia pracy: {user_data.work_start_year}
+        - Prognozowana emerytura: {monthly_pension} PLN
+        - Stopa zastąpienia: {replacement_rate}%
+        
+        Wygeneruj 5-7 NAJBARDZIEJ ISTOTNYCH pytań, które ta osoba prawdopodobnie chce zadać
+        dotyczących swojej emerytury i sytuacji emerytalnej. Pytania powinny być:
+        - Personalizowane (uwzględniające branżę, wiek, płeć)
+        - Praktyczne (dotyczące rzeczywistych decyzji życiowych)
+        - Zróżnicowane (porównania, scenariusze "co jeśli", optymalizacje)
+        
+        Dla każdego pytania podaj KONKRETNĄ, PRAKTYCZNĄ odpowiedź (2-3 zdania).
+        
+        Zwróć wynik w formacie JSON:
+        {{
+            "faq": [
+                {{
+                    "question": "Pytanie?",
+                    "answer": "Szczegółowa odpowiedź bazująca na danych użytkownika...",
+                    "relevance": "high|medium|low",
+                    "category": "comparison|scenario|optimization|legal"
+                }}
+            ]
+        }}
+        
+        Uwzględnij pytania typu:
+        - Porównania z rówieśnikami/branżą
+        - Scenariusze "co jeśli" (przerwy w pracy, zmiana zarobków)
+        - Optymalizacje (kiedy przejść na emeryturę, ile pracować dłużej)
+        - Wcześniejsza emerytura / emerytura pomostowa
+        - Wpływ dodatkowych oszczędności (IKE, IKZE)
+        """
+        
+        # Call Perplexity API
+        from langchain_core.prompts import ChatPromptTemplate
+        
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", "Jesteś ekspertem od polskiego systemu emerytalnego i ZUS. Odpowiadasz konkretnie i praktycznie."),
+            ("human", "{prompt}")
+        ])
+        
+        chain = prompt_template | calculator.llm
+        response = chain.invoke({"prompt": faq_prompt})
+        
+        # Parse JSON response
+        import json
+        content = response.content
+        
+        # Extract JSON from response
+        if "```json" in content:
+            json_start = content.find("```json") + 7
+            json_end = content.find("```", json_start)
+            json_str = content[json_start:json_end].strip()
+        elif "{" in content and "}" in content:
+            json_start = content.find("{")
+            json_end = content.rfind("}") + 1
+            json_str = content[json_start:json_end]
+        else:
+            json_str = content
+        
+        result = json.loads(json_str)
+        
+        # Add metadata
+        result["metadata"] = {
+            "generated_at": datetime.now().isoformat(),
+            "user_age": user_data.age,
+            "user_industry": user_data.industry,
+            "model": "perplexity-ai",
+            "total_questions": len(result.get("faq", []))
+        }
+        
+        logger.info(f"Generated {len(result.get('faq', []))} FAQ questions")
+        return jsonify(result), 200
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse FAQ JSON: {e}")
+        return jsonify({
+            "error": "Failed to parse AI response",
+            "raw_response": response.content if 'response' in locals() else None
+        }), 500
+        
+    except Exception as e:
+        logger.error(f"Error generating FAQ: {e}", exc_info=True)
+        return jsonify({
+            "error": str(e),
+            "calculation_date": datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/api/explain_terms', methods=['POST'])
+def explain_terms():
+    """
+    Explain complex pension terminology in simple terms.
+    
+    🌟 WOW FEATURE #2: AI-Powered Pension Dictionary
+    
+    Uses AI to explain difficult pension concepts in easy-to-understand language,
+    with examples relevant to the user's situation.
+    
+    Request JSON:
+    {
+        "terms": ["kapitał początkowy", "waloryzacja", "współczynnik zastąpienia"],
+        "user_data": {  // Optional - for personalized examples
+            "age": 35,
+            "gross_salary": 8000.0,
+            ...
+        },
+        "calculation_result": {  // Optional - for context
+            "monthly_pension": 4567.89,
+            ...
+        }
+    }
+    
+    Response:
+    {
+        "explanations": [
+            {
+                "term": "kapitał początkowy",
+                "simple_explanation": "To pieniądze zgromadzone...",
+                "detailed_explanation": "Kapitał początkowy to...",
+                "example": "W Twoim przypadku, jeśli...",
+                "related_terms": ["kapitał emerytalny", "składki"]
+            },
+            ...
+        ],
+        "metadata": {...}
+    }
+    """
+    logger.info("Terms explanation endpoint called")
+    
+    try:
+        # Check if calculator is initialized
+        if calculator is None:
+            logger.error("Calculator not initialized - missing API key")
+            return jsonify({
+                "error": "Calculator not initialized. Please set PPLX_API_KEY environment variable",
+                "calculation_date": datetime.now().isoformat()
+            }), 500
+
+        # Get request data
+        data = request.get_json()
+        
+        if not data or 'terms' not in data:
+            return jsonify({"error": "terms field is required (array of terms to explain)"}), 400
+        
+        terms = data['terms']
+        user_data_dict = data.get('user_data', {})
+        calculation_result = data.get('calculation_result', {})
+        
+        if not isinstance(terms, list) or len(terms) == 0:
+            return jsonify({"error": "terms must be a non-empty array"}), 400
+        
+        logger.info(f"Explaining {len(terms)} pension terms")
+        
+        # Build context from user data if provided
+        context = ""
+        if user_data_dict:
+            user_data = UserData(**user_data_dict)
+            context = f"""
+            Kontekst użytkownika (do personalizacji przykładów):
+            - Wiek: {user_data.age} lat
+            - Wynagrodzenie: {user_data.gross_salary} PLN brutto
+            - Płeć: {user_data.gender}
+            """
+            if calculation_result.get('monthly_pension'):
+                context += f"\n- Prognozowana emerytura: {calculation_result['monthly_pension']} PLN"
+        
+        # Generate explanation prompt
+        terms_list = ", ".join([f'"{term}"' for term in terms])
+        
+        explanation_prompt = f"""
+        Jesteś ekspertem od polskiego systemu emerytalnego, który wyjaśnia trudne pojęcia prostym językiem.
+        
+        {context}
+        
+        Wyjaśnij następujące terminy emerytalne: {terms_list}
+        
+        Dla każdego terminu podaj:
+        1. **Proste wyjaśnienie** (1-2 zdania, jak dla osoby bez wiedzy o emeryturach)
+        2. **Szczegółowe wyjaśnienie** (2-3 zdania z kontekstem prawnym/systemowym)
+        3. **Przykład praktyczny** (najlepiej spersonalizowany do kontekstu użytkownika, jeśli podany)
+        4. **Powiązane terminy** (lista 2-3 powiązanych pojęć)
+        
+        Zwróć wynik w formacie JSON:
+        {{
+            "explanations": [
+                {{
+                    "term": "nazwa terminu",
+                    "simple_explanation": "Proste wyjaśnienie dla laika...",
+                    "detailed_explanation": "Szczegółowe wyjaśnienie z kontekstem prawnym...",
+                    "example": "Przykład: W Twoim przypadku...",
+                    "related_terms": ["termin1", "termin2"],
+                    "importance": "high|medium|low"
+                }}
+            ]
+        }}
+        
+        Używaj prostego języka, unikaj żargonu. Jeśli musisz użyć kolejnego trudnego terminu, 
+        wyjaśnij go w nawiasie.
+        """
+        
+        # Call Perplexity API
+        from langchain_core.prompts import ChatPromptTemplate
+        
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", "Jesteś ekspertem emerytalnym, który wyjaśnia trudne pojęcia w prosty, zrozumiały sposób. Unikasz żargonu i używasz przykładów z życia."),
+            ("human", "{prompt}")
+        ])
+        
+        chain = prompt_template | calculator.llm
+        response = chain.invoke({"prompt": explanation_prompt})
+        
+        # Parse JSON response
+        import json
+        content = response.content
+        
+        # Extract JSON from response
+        if "```json" in content:
+            json_start = content.find("```json") + 7
+            json_end = content.find("```", json_start)
+            json_str = content[json_start:json_end].strip()
+        elif "{" in content and "}" in content:
+            json_start = content.find("{")
+            json_end = content.rfind("}") + 1
+            json_str = content[json_start:json_end]
+        else:
+            json_str = content
+        
+        result = json.loads(json_str)
+        
+        # Add metadata
+        result["metadata"] = {
+            "generated_at": datetime.now().isoformat(),
+            "terms_count": len(terms),
+            "terms_requested": terms,
+            "model": "perplexity-ai",
+            "personalized": bool(user_data_dict)
+        }
+        
+        logger.info(f"Explained {len(result.get('explanations', []))} terms")
+        return jsonify(result), 200
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse explanation JSON: {e}")
+        return jsonify({
+            "error": "Failed to parse AI response",
+            "raw_response": response.content if 'response' in locals() else None
+        }), 500
+        
+    except Exception as e:
+        logger.error(f"Error explaining terms: {e}", exc_info=True)
+        return jsonify({
+            "error": str(e),
+            "calculation_date": datetime.now().isoformat()
+        }), 500
+
+
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
