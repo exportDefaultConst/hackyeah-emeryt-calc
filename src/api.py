@@ -233,7 +233,7 @@ def calculate_pension_local():
         }), 500
 
 
-@app.route('/validate_user_data', methods=['POST'])
+@app.route('/api/validate_user_data', methods=['POST'])
 def validate_user_data_endpoint():
     """
     Validate user data without performing calculation.
@@ -275,7 +275,7 @@ def validate_user_data_endpoint():
         return jsonify({"error": str(e)}), 400
 
 
-@app.route('/zus_tables', methods=['GET'])
+@app.route('/api/zus_tables', methods=['GET'])
 def get_zus_tables():
     """
     Get default ZUS tables (valorization indices, demographics, etc.).

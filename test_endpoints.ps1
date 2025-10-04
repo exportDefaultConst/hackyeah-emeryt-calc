@@ -1,7 +1,7 @@
 # PowerShell Test Script for Pension Calculator API Endpoints
 # Tests all endpoints with 3 different scenarios using Invoke-RestMethod
 
-$baseUrl = "http://localhost:5000"
+$baseUrl = "http://https://sym.packt.pl"
 $headers = @{
     "Content-Type" = "application/json"
 }
