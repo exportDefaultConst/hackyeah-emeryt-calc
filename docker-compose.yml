@@ -1,0 +1,18 @@
+services:
+  pension-api:
+    build: .
+    container_name: pension-calculator
+    ports:
+      - "5000:5000"
+    environment:
+      - PPLX_API_KEY=${PPLX_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
