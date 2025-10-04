@@ -37,7 +37,7 @@ def initialize_calculator():
             logger.error(f"Failed to initialize calculator: {e}")
 
 
-@app.route('/health', methods=['GET'])
+@app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     logger.debug("Health check requested")
@@ -48,7 +48,7 @@ def health_check():
     }), 200
 
 
-@app.route('/calculate_pension', methods=['POST'])
+@app.route('/api/calculate_pension', methods=['POST'])
 def calculate_pension():
     """Calculate pension based on user data"""
     logger.info("Pension calculation endpoint called")
@@ -111,7 +111,7 @@ def not_found(error):
     return jsonify({"error": "Endpoint not found"}), 404
 
 
-@app.route('/calculate_pension_local', methods=['POST'])
+@app.route('/api/calculate_pension_local', methods=['POST'])
 def calculate_pension_local():
     """
     Calculate pension locally using ZUS statistics (no AI API call).

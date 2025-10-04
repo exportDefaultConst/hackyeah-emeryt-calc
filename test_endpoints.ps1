@@ -15,10 +15,10 @@ Write-Host ""
 # TEST 1: Health Check Endpoint
 # ============================================
 Write-Host "TEST 1: Health Check Endpoint" -ForegroundColor Yellow
-Write-Host "GET /health" -ForegroundColor Gray
+Write-Host "GET /api/health" -ForegroundColor Gray
 Write-Host ""
 
-$response = Invoke-RestMethod -Uri "$baseUrl/health" -Method Get
+$response = Invoke-RestMethod -Uri "$baseUrl/api/health" -Method Get
 $response | ConvertTo-Json -Depth 10
 Write-Host ""
 Write-Host "---" -ForegroundColor Gray
@@ -115,7 +115,7 @@ Write-Host ""
 # TEST 4: Local Calculation - Case 1 (Young Professional)
 # ============================================
 Write-Host "TEST 4.1: Local Calculation - Young Professional (Male, 30)" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 
 $youngPro = @{
@@ -127,7 +127,7 @@ $youngPro = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $youngPro
+$response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $youngPro
 Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
 $response | ConvertTo-Json -Depth 10
 Write-Host ""
@@ -138,7 +138,7 @@ Write-Host ""
 # TEST 4.2: Local Calculation - Case 2 (Mid-Career with Balances)
 # ============================================
 Write-Host "TEST 4.2: Local Calculation - Mid-Career with ZUS Balances" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 
 $midCareer = @{
@@ -154,7 +154,7 @@ $midCareer = @{
     }
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $midCareer
+$response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $midCareer
 Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
 $response | ConvertTo-Json -Depth 10
 Write-Host ""
@@ -165,7 +165,7 @@ Write-Host ""
 # TEST 4.3: Local Calculation - Case 3 (Near Retirement with Custom Tables)
 # ============================================
 Write-Host "TEST 4.3: Local Calculation - Near Retirement with Custom Tables" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 
 $nearRetirement = @{
@@ -192,7 +192,7 @@ $nearRetirement = @{
     }
 } | ConvertTo-Json -Depth 10
 
-$response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $nearRetirement
+$response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $nearRetirement
 Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
 $response | ConvertTo-Json -Depth 10
 Write-Host ""
@@ -213,7 +213,7 @@ Write-Host ""
 # TEST 5.1: IT Specialist - High Earner, No Sick Leaves
 # ============================================
 Write-Host "TEST 5.1: IT Specialist - High Income Scenario" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Profile: 35-year-old male IT specialist" -ForegroundColor Cyan
 Write-Host "  - Salary: 15,000 PLN/month" -ForegroundColor Cyan
@@ -236,7 +236,7 @@ $itSpecialist = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $itSpecialist
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $itSpecialist
     Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
     Write-Host "Replacement Rate: $($response.replacement_rate)%" -ForegroundColor Cyan
     $response | ConvertTo-Json -Depth 10
@@ -252,7 +252,7 @@ Write-Host ""
 # TEST 5.2: Teacher - Average Income with Sick Leaves
 # ============================================
 Write-Host "TEST 5.2: Teacher - Average Income with Health Issues" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Profile: 42-year-old female teacher" -ForegroundColor Cyan
 Write-Host "  - Salary: 6,500 PLN/month" -ForegroundColor Cyan
@@ -278,7 +278,7 @@ $teacher = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $teacher
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $teacher
     Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
     Write-Host "Replacement Rate: $($response.replacement_rate)%" -ForegroundColor Cyan
     $response | ConvertTo-Json -Depth 10
@@ -294,7 +294,7 @@ Write-Host ""
 # TEST 5.3: Construction Worker - Low Income, Long Career
 # ============================================
 Write-Host "TEST 5.3: Construction Worker - Long Career, Lower Income" -ForegroundColor Yellow
-Write-Host "POST /calculate_pension_local" -ForegroundColor Gray
+Write-Host "POST /api/calculate_pension_local" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Profile: 50-year-old male construction worker" -ForegroundColor Cyan
 Write-Host "  - Salary: 5,200 PLN/month" -ForegroundColor Cyan
@@ -320,7 +320,7 @@ $constructionWorker = @{
 } | ConvertTo-Json
 
 try {
-    $response = Invoke-RestMethod -Uri "$baseUrl/calculate_pension_local" -Method Post -Headers $headers -Body $constructionWorker
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/calculate_pension_local" -Method Post -Headers $headers -Body $constructionWorker
     Write-Host "Monthly Pension: $($response.monthly_pension) PLN" -ForegroundColor Green
     Write-Host "Replacement Rate: $($response.replacement_rate)%" -ForegroundColor Cyan
     Write-Host "Years of Contributions: $($response.years_of_contributions)" -ForegroundColor Magenta
@@ -342,13 +342,13 @@ Write-Host "  ALL ENDPOINT TESTS COMPLETED" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Tests executed:" -ForegroundColor Green
-Write-Host "  1. Health Check (GET /health)" -ForegroundColor White
+Write-Host "  1. Health Check (GET /api/health)" -ForegroundColor White
 Write-Host "  2. Get ZUS Tables (GET /zus_tables)" -ForegroundColor White
 Write-Host "  3. Validate User Data - 3 cases (POST /validate_user_data)" -ForegroundColor White
 Write-Host "     - Valid data" -ForegroundColor Gray
 Write-Host "     - Invalid age" -ForegroundColor Gray
 Write-Host "     - Multiple errors" -ForegroundColor Gray
-Write-Host "  4. Local Calculation - 3 cases (POST /calculate_pension_local)" -ForegroundColor White
+Write-Host "  4. Local Calculation - 3 cases (POST /api/calculate_pension_local)" -ForegroundColor White
 Write-Host "     - Young professional" -ForegroundColor Gray
 Write-Host "     - Mid-career with balances" -ForegroundColor Gray
 Write-Host "     - Near retirement with custom tables" -ForegroundColor Gray

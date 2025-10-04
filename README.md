@@ -87,7 +87,7 @@ The API will be available at `http://localhost:5000`
 
 ## API Endpoints
 
-### `GET /health`
+### `GET /api/health`
 Health check endpoint
 
 **Response:**
@@ -99,7 +99,7 @@ Health check endpoint
 }
 ```
 
-### `POST /calculate_pension`
+### `POST /api/calculate_pension`
 Calculate pension projection using Perplexity AI
 
 **Request:**
@@ -141,7 +141,7 @@ Calculate pension projection using Perplexity AI
 }
 ```
 
-### `POST /calculate_pension_local` ⭐ NEW
+### `POST /api/calculate_pension_local` ⭐ NEW
 Calculate pension using local ZUS statistics (no AI API required)
 
 **Features:**
@@ -283,7 +283,7 @@ Get default ZUS tables with historical and projected data
 
 ### Using curl - AI-powered calculation
 ```powershell
-curl -X POST http://localhost:5000/calculate_pension `
+curl -X POST http://localhost:5000/api/calculate_pension `
   -H "Content-Type: application/json" `
   -d '{
     "user_data": {
@@ -297,7 +297,7 @@ curl -X POST http://localhost:5000/calculate_pension `
 
 ### Using curl - Local calculation
 ```powershell
-curl -X POST http://localhost:5000/calculate_pension_local `
+curl -X POST http://localhost:5000/api/calculate_pension_local `
   -H "Content-Type: application/json" `
   -d '{
     "user_data": {

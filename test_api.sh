@@ -11,17 +11,17 @@ API_URL="http://localhost:5000"
 
 # Test 1: Health Check
 echo "Test 1: Health Check"
-echo "GET $API_URL/health"
+echo "GET $API_URL/api/health"
 echo ""
-curl -X GET "$API_URL/health"
+curl -X GET "$API_URL/api/health"
 echo ""
 echo ""
 
 # Test 2: Simple Pension Calculation (Minimal Data)
 echo "Test 2: Minimal Pension Calculation"
-echo "POST $API_URL/calculate_pension"
+echo "POST $API_URL/api/calculate_pension"
 echo ""
-curl -X POST "$API_URL/calculate_pension" \
+curl -X POST "$API_URL/api/calculate_pension" \
     -H "Content-Type: application/json" \
     -d '{
         "user_data": {
@@ -36,9 +36,9 @@ echo ""
 
 # Test 3: Full Pension Calculation (All Data)
 echo "Test 3: Full Pension Calculation (All Fields)"
-echo "POST $API_URL/calculate_pension"
+echo "POST $API_URL/api/calculate_pension"
 echo ""
-curl -X POST "$API_URL/calculate_pension" \
+curl -X POST "$API_URL/api/calculate_pension" \
     -H "Content-Type: application/json" \
     -d '{
         "user_data": {
@@ -60,9 +60,9 @@ echo ""
 
 # Test 4: Young Worker
 echo "Test 4: Young Worker (23 years old)"
-echo "POST $API_URL/calculate_pension"
+echo "POST $API_URL/api/calculate_pension"
 echo ""
-curl -X POST "$API_URL/calculate_pension" \
+curl -X POST "$API_URL/api/calculate_pension" \
     -H "Content-Type: application/json" \
     -d '{
         "user_data": {
