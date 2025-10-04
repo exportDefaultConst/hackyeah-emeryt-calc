@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from .calculator import PensionCalculator, calculate_pension_locally
 from .models import PensionCalculationRequest, UserData
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Enable CORS for all routes and origins
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Initialize calculator (will be set on first request)
 calculator = None
