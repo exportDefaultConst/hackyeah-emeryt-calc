@@ -131,58 +131,92 @@ class PensionCalculator:
         """
         logger.debug("Generating Polish prompt for Perplexity API")
         
+        # Calculate expected retirement year and age
+        current_year = datetime.now().year
+        retirement_age = RETIREMENT_AGE[user_data.gender]
+        years_to_retirement = user_data.work_end_year - current_year
+        age_at_retirement = user_data.age + years_to_retirement
+        total_work_years = user_data.work_end_year - user_data.work_start_year
+        
+        # Calculate realistic pension range
+        avg_monthly_contribution = user_data.gross_salary * PENSION_CONTRIBUTION_RATE * 12
+        total_contributions_rough = avg_monthly_contribution * total_work_years * 1.5  # with valorization
+        life_expectancy = LIFE_EXPECTANCY_MONTHS[user_data.gender]
+        realistic_pension_estimate = total_contributions_rough / life_expectancy
+        min_realistic = realistic_pension_estimate * 0.7  # -30%
+        max_realistic = realistic_pension_estimate * 1.3  # +30%
+        
         prompt = f"""
-        Oblicz dokładną prognozę emerytury dla osoby o następujących parametrach:
+        Jesteś ekspertem od polskiego systemu emerytalnego ZUS. Oblicz REALISTYCZNĄ prognozę emerytury.
 
-        DANE OBOWIĄZKOWE:
+        DANE UŻYTKOWNIKA:
         - Wiek: {user_data.age} lat
         - Płeć: {user_data.gender}
-        - Wysokość wynagrodzenia brutto: {user_data.gross_salary} PLN miesięcznie
+        - Wynagrodzenie brutto: {user_data.gross_salary} PLN miesięcznie
         - Rok rozpoczęcia pracy: {user_data.work_start_year}
-        - Planowany rok zakończenia pracy: {user_data.work_end_year}
+        - Planowany rok emerytury: {user_data.work_end_year}
+        - Branża: {user_data.industry or 'nie podano'}
+        - Stanowisko: {user_data.position or 'nie podano'}
 
-        DODATKOWE INFORMACJE:
-        - Branża/pozycja: {user_data.industry or 'nie podano'} / {user_data.position or 'nie podano'}
-        - Firma: {user_data.company or 'nie podano'}
+        KLUCZOWE PARAMETRY:
+        - Lata do przepracowania: {total_work_years} lat (od {user_data.work_start_year} do {user_data.work_end_year})
+        - Wiek na emeryturze: {age_at_retirement} lat
+        - Składka miesięczna: {parameters['monthly_contribution']:.2f} PLN (19.52% z {user_data.gross_salary} PLN)
+        - Wiek emerytalny dla {user_data.gender}: {retirement_age} lat
+        - Średnie dalsze trwanie życia: {life_expectancy} miesięcy
 
-        DANE OPCJONALNE:
-        - Środki zgromadzone na koncie ZUS: {user_data.zus_account_balance or 'nie podano'} PLN
-        - Środki zgromadzone na subkoncie ZUS: {user_data.zus_subaccount_balance or 'nie podano'} PLN
-        - Średnia liczba dni zwolnień lekarskich rocznie: {user_data.sick_leave_days_per_year or 'nie podano'}
+        WEŹ POD UWAGĘ:
+        - Inflacja i indeksacja
+        - Waloryzacja składek (średnio 3.5-4.5% rocznie (znajdź oficjalne prognozowane dane na dane lata))
+        - Realistyczne zmiany wynagrodzenia w czasie pracy
+        - Dokładnie zbadaj stanowisko i branżę (wpływ na stabilność zatrudnienia i składki)
+        - Jeśli stanowisko jest niskiego ryzyka chorób zawodowych, uwzględnij to w kalkulacji
 
-        OBLICZONE PARAMETRY:
-        - Lata przepracowane: {parameters['years_worked']}
-        - Pozostałe lata do emerytury: {parameters['remaining_years']}
-        - Miesięczna składka emerytalna: {parameters['monthly_contribution']:.2f} PLN
+        ⚠️ KRYTYCZNE ZASADY WALIDACJI:
+        1. Emerytura MUSI być NIŻSZA niż ostatnia pensja (stopa zastąpienia < 100%)
+        2. Typowa stopa zastąpienia w Polsce: 30-60%
+        3. Dla osób młodych (poniżej 30 lat): stopa zastąpienia około 25-40%
+        4. Emerytura NIGDY nie może przekraczać wynagrodzenia
+        5. Minimalna emerytura 2025: {parameters['basic_pension']:.2f} PLN
+        
+        REALISTYCZNY ZAKRES dla tej osoby:
+        - Minimalna emerytura: {min_realistic:.0f} PLN
+        - Maksymalna emerytura: {max_realistic:.0f} PLN
+        - Oczekiwana stopa zastąpienia: 30-50% (NIE WIĘCEJ!)
 
-        Proszę o obliczenie:
-        1. Rzeczywistej wysokości przyszłej emerytury (kwota brutto w PLN)
-        2. Urealnionej (indeksowanej) wysokości emerytury uwzględniającej inflację
-        3. Wpływu zwolnień lekarskich na wysokość emerytury
-        4. Wpływu zmienności zarobków i waloryzacji składek
-        5. Stopy zastąpienia (procent wynagrodzenia realizowany przez emeryturę)
-        6. Porównania z minimalną emeryturą ({parameters['basic_pension']:.2f} PLN)
-        7. Informacji, ile lat trzeba pracować dłużej, jeśli prognoza jest niższa od oczekiwanej
+        FORMUŁA ZUS (obowiązująca od 1999):
+        Emerytura = (Suma zwaloryzowanych składek) / (Średnie dalsze trwanie życia w miesiącach)
 
-        Uwzględnij aktualne zasady ZUS, waloryzację składek, tabele średniego dalszego trwania życia GUS.
+        OBLICZ według wzoru ZUS:
+        1. Łączne składki: {parameters['monthly_contribution']:.2f} PLN × 12 × {total_work_years} lat × 1.4 (waloryzacja)
+        2. Kapitał emerytalny: suma zwaloryzowanych składek
+        3. Miesięczna emerytura: kapitał / {life_expectancy} miesięcy
+        4. Stopa zastąpienia: (emerytura / ostatnia pensja) × 100%
 
-        Zwróć odpowiedź w formacie JSON z następującymi polami:
+        Zwróć odpowiedź w formacie JSON:
         {{
-            "current_pension_projection": [kwota emerytury w PLN],
-            "indexed_pension_projection": [kwota po indeksacji w PLN], 
-            "replacement_rate": [stopa zastąpienia w %],
-            "years_to_work_longer": [dodatkowe lata pracy lub null],
-            "sick_leave_impact": [wpływ zwolnień w PLN lub null],
-            "salary_variability_impact": [wpływ zmienności płac w PLN],
+            "current_pension_projection": [kwota emerytury MNIEJSZA niż {user_data.gross_salary} PLN],
+            "indexed_pension_projection": [kwota po inflacji], 
+            "replacement_rate": [stopa 25-60%, NIGDY powyżej 100%],
+            "years_to_work_longer": [ile lat więcej do 60% stopy],
+            "sick_leave_impact": null,
+            "salary_variability_impact": [wpływ wzrostu płac],
             "minimum_pension_gap": [różnica do minimum lub null],
             "calculation_details": {{
                 "contribution_rate": "19.52%",
-                "total_contributions_estimated": [łączne składki],
-                "valorization_rate": "aktualna stopa waloryzacji",
-                "life_expectancy_months": [miesiące życia na emeryturze],
-                "assumptions": ["lista założeń obliczeniowych"]
+                "total_contributions_estimated": [realistyczna kwota],
+                "valorization_rate": "średnio 3.5-4.5% rocznie",
+                "life_expectancy_months": {life_expectancy},
+                "assumptions": [
+                    "System ZUS od 1999",
+                    "Waloryzacja składek {total_work_years} lat",
+                    "Emerytura MUSI być niższa niż pensja",
+                    "Realistyczna stopa zastąpienia: 30-50%"
+                ]
             }}
         }}
+
+        PAMIĘTAJ: Jeśli obliczenia dają stopę powyżej 60%, POPRAW je! To niemożliwe w polskim systemie.
         """
         return prompt.strip()
 
@@ -240,6 +274,33 @@ class PensionCalculator:
 
                 result = json.loads(json_str)
                 logger.info("Successfully parsed JSON response from API")
+
+                # ⚠️ CRITICAL: Validate AI results for sanity
+                pension = result.get("current_pension_projection", 0)
+                replacement_rate = result.get("replacement_rate", 0)
+                
+                # Check if pension is unrealistically high
+                if pension > user_data.gross_salary:
+                    logger.warning(f"AI returned pension ({pension}) > salary ({user_data.gross_salary}). Correcting...")
+                    # Correct to maximum realistic pension (50% replacement rate)
+                    result["current_pension_projection"] = user_data.gross_salary * 0.5
+                    result["indexed_pension_projection"] = user_data.gross_salary * 0.45  # accounting for inflation
+                    result["replacement_rate"] = 50.0
+                    result["_correction_applied"] = "AI returned unrealistic pension > salary. Corrected to 50% replacement rate."
+                
+                # Check if replacement rate is impossible
+                if replacement_rate > 100:
+                    logger.warning(f"AI returned replacement rate {replacement_rate}% > 100%. Correcting...")
+                    result["replacement_rate"] = min(60.0, replacement_rate / 2)  # Cap at 60%
+                    result["current_pension_projection"] = user_data.gross_salary * (result["replacement_rate"] / 100)
+                    result["_correction_applied"] = "AI returned impossible replacement rate > 100%. Corrected to realistic range."
+                
+                # Check if replacement rate is too high for young person
+                if user_data.age < 30 and replacement_rate > 50:
+                    logger.warning(f"AI returned {replacement_rate}% for {user_data.age}-year-old. Too high. Correcting...")
+                    result["replacement_rate"] = min(40.0, replacement_rate)
+                    result["current_pension_projection"] = user_data.gross_salary * (result["replacement_rate"] / 100)
+                    result["_correction_applied"] = f"AI returned unrealistic rate for age {user_data.age}. Corrected to max 40%."
 
                 # Add metadata to result
                 result["metadata"] = {
