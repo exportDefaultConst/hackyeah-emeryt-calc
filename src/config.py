@@ -6,7 +6,7 @@ load_dotenv()
 
 # API Configuration
 PERPLEXITY_API_KEY = os.environ.get("PPLX_API_KEY")
-PERPLEXITY_MODEL = "sonar-pro"
+PERPLEXITY_MODEL = "sonar-reasoning"
 PERPLEXITY_TEMPERATURE = 0.1
 
 # Flask Configuration
