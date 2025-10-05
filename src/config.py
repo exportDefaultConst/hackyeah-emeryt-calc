@@ -14,6 +14,12 @@ FLASK_HOST = os.environ.get("FLASK_HOST", "0.0.0.0")
 FLASK_PORT = int(os.environ.get("FLASK_PORT", 5000))
 FLASK_DEBUG = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
 
+# Admin Configuration
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "KluczAdmin123")
+
+# Database Configuration
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///pension_calculations.db")
+
 # Logging Configuration
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

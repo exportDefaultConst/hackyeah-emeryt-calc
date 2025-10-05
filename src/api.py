@@ -6,10 +6,11 @@ from flask_cors import CORS
 
 from .calculator import PensionCalculator, calculate_pension_locally
 from .models import PensionCalculationRequest, UserData
-from .config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOG_LEVEL, LOG_FORMAT
+from .config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, LOG_LEVEL, LOG_FORMAT, ADMIN_SECRET
 from .validation import validate_user_data, sanity_check_pension
 from .result_formatter import build_pension_result_json, format_validation_errors
 from .pdf_parser import get_mock_zus_tables
+from .database import init_db, save_calculation_result, get_calculation_records
 
 # Configure logging
 logging.basicConfig(
@@ -30,10 +31,14 @@ calculator = None
 
 @app.before_request
 def initialize_calculator():
-    """Initialize calculator on first request"""
+    """Initialize calculator and database on first request"""
     global calculator
     if calculator is None:
         try:
+            logger.info("Initializing database...")
+            init_db()
+            logger.info("Database initialized successfully")
+            
             logger.info("Initializing PensionCalculator...")
             calculator = PensionCalculator()
             logger.info("PensionCalculator initialized successfully")
@@ -97,6 +102,16 @@ def calculate_pension():
             logger.error(f"Calculation failed: {result['error']}")
             return jsonify(result), 500
 
+        # Save to database
+        try:
+            saved_record = save_calculation_result(user_data, result, calculation_method="ai")
+            result["record_id"] = saved_record.id
+            logger.info(f"Saved AI calculation to database with ID: {saved_record.id}")
+        except Exception as db_error:
+            logger.error(f"Failed to save to database: {db_error}")
+            # Don't fail the request if database save fails
+            result["record_id"] = None
+
         logger.info("Calculation completed successfully")
         return jsonify(result), 200
 
@@ -105,6 +120,88 @@ def calculate_pension():
         return jsonify({
             "error": str(e),
             "calculation_date": datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/api/calculations', methods=['GET'])
+def get_calculations():
+    """
+    Get all saved pension calculations with pagination.
+    
+    🔒 ADMIN ENDPOINT - Requires authentication
+    
+    Query Parameters:
+    - secret: Admin secret key (required) - "KluczAdmin123"
+    - page: Page number (default: 1)
+    - per_page: Records per page (default: 20, max: 100)
+    
+    Example:
+    GET /api/calculations?secret=KluczAdmin123&page=1&per_page=20
+    
+    Response:
+    {
+        "records": [
+            {
+                "id": 1,
+                "timestamp": "2025-10-05T12:34:56",
+                "user_data": {...},
+                "results": {...},
+                ...
+            },
+            ...
+        ],
+        "pagination": {
+            "page": 1,
+            "per_page": 20,
+            "total_records": 45,
+            "total_pages": 3,
+            "has_next": true,
+            "has_prev": false
+        }
+    }
+    """
+    logger.info("Calculations retrieval endpoint called")
+    
+    try:
+        # Check authentication
+        secret = request.args.get('secret')
+        if not secret:
+            logger.warning("Unauthorized access attempt - no secret provided")
+            return jsonify({"error": "Authentication required. Provide 'secret' query parameter"}), 401
+        
+        if secret != ADMIN_SECRET:
+            logger.warning(f"Unauthorized access attempt - invalid secret: {secret[:5]}...")
+            return jsonify({"error": "Invalid secret"}), 403
+        
+        # Get pagination parameters
+        try:
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 20))
+            
+            # Validate pagination parameters
+            if page < 1:
+                return jsonify({"error": "Page must be >= 1"}), 400
+            if per_page < 1 or per_page > 100:
+                return jsonify({"error": "per_page must be between 1 and 100"}), 400
+                
+        except ValueError:
+            return jsonify({"error": "Invalid pagination parameters"}), 400
+        
+        logger.info(f"Fetching calculations: page={page}, per_page={per_page}")
+        
+        # Get records from database
+        result = get_calculation_records(page=page, per_page=per_page)
+        
+        logger.info(f"Retrieved {len(result['records'])} records "
+                   f"(page {page}/{result['pagination']['total_pages']})")
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving calculations: {e}", exc_info=True)
+        return jsonify({
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
         }), 500
 
 
@@ -217,6 +314,16 @@ def calculate_pension_local():
         
         # Add sanity check details
         formatted_result["sanity_check"] = sanity_result
+        
+        # Save to database
+        try:
+            saved_record = save_calculation_result(user_data_dict, formatted_result, calculation_method="local")
+            formatted_result["record_id"] = saved_record.id
+            logger.info(f"Saved calculation to database with ID: {saved_record.id}")
+        except Exception as db_error:
+            logger.error(f"Failed to save to database: {db_error}")
+            # Don't fail the request if database save fails
+            formatted_result["record_id"] = None
         
         logger.info(f"Local calculation completed: {result['monthly_pension']:.2f} PLN/month, "
                    f"status: {sanity_result['status']}")
