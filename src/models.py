@@ -20,6 +20,7 @@ class UserData:
     zus_subaccount_balance: Optional[float] = None
     sick_leave_days_per_year: Optional[float] = None
     desired_pension: Optional[float] = None  # How much pension user wants (PLN/month)
+    postal_code: Optional[str] = None  # User's postal code (for database only, not used in calculations)
 
 
 class PensionCalculationRequest(BaseModel):

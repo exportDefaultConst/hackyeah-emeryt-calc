@@ -44,6 +44,7 @@ class PensionCalculationRecord(Base):
     position = Column(String(100), nullable=True)
     company = Column(String(100), nullable=True)
     desired_pension = Column(Float, nullable=True)
+    postal_code = Column(String(20), nullable=True)
     
     # Full user data as JSON
     user_data_json = Column(JSON)
@@ -75,6 +76,7 @@ class PensionCalculationRecord(Base):
                 "position": self.position,
                 "company": self.company,
                 "desired_pension": self.desired_pension,
+                "postal_code": self.postal_code,
             },
             "user_data_full": self.user_data_json,
             "results": {
@@ -127,6 +129,7 @@ def save_calculation_result(user_data_dict: dict, result: dict, calculation_meth
             position=user_data_dict.get("position"),
             company=user_data_dict.get("company"),
             desired_pension=user_data_dict.get("desired_pension"),
+            postal_code=user_data_dict.get("postal_code"),
             user_data_json=user_data_dict,
             
             # Results
